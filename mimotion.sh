@@ -63,7 +63,8 @@ function dingdingbot() {
     TimeStamp="$(date +"%s")$(shuf -i 0-9 -n1)$(shuf -i 0-9 -n1)$(shuf -i 0-9 -n1)"
     Sign="$(urlencode $(echo -en "${TimeStamp}\n${ding_secret}" | openssl dgst -sha256 -hmac "${ding_secret}" -binary | openssl base64))"
     apiurl="https://oapi.dingtalk.com/robot/send?access_token=${ding_token}&timestamp=${TimeStamp}&sign=${Sign}"
-    echo 钉钉通知消息状态：$(curl -m 10 -sX POST -H "Content-Type:application/json" --data "{\"msgtype\": \"markdown\",\"markdown\": {\"title\": \"小米运动步数修改提醒\", \"text\": \"#### 小米运动步数修改提醒 \n > 小米运动账号 $(echo ${username:0:2}******${username:8}) 步数 $step 修改状态 $(cat $TMPFILE | grep -oE "message\":\"[^\"]*" | cut -d\" -f3)\"}}" "$apiurl")}
+    echo 钉钉通知消息状态：$(curl -m 10 -sX POST -H "Content-Type:application/json" --data "{\"msgtype\": \"markdown\",\"markdown\": {\"title\": \"小米运动步数修改提醒\", \"text\": \"#### 小米运动步数修改提醒 \n > 小米运动账号 $(echo ${username:0:2}******${username:8}) 步数 $step 修改状态 $(cat $TMPFILE | grep -oE "message\":\"[^\"]*" | cut -d\" -f3)\"}}" "$apiurl")
+}
 
 function main() {
     for ((u = 0; u < ${#all_username_password[*]}; u++)); do 
