@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin && export PATH
-## 小米运动app修改微信支付宝运动步数:我的->第三方接入->绑定支付宝,微信
+## 小米运动app步数不会更新,仅更新关联应用:我的->第三方接入->绑定支付宝,微信
 ### 微信排行榜开关:微信-设置-通用-辅助功能-微信运动-隐私及提醒设置
 #### 支付宝排行榜开关:支付宝运动-...-设置  
 
@@ -18,6 +18,17 @@ echo ${all_parameter[*]} | grep -qE "deviceId@[0-9]+" && deviceId=$(echo ${all_p
 
 # app版本和UA
 app_version="5.0.1" && UA="MiFit/${app_version} (iPhone; iOS 14.4.1; Scale/3.00)"
+
+function urlencode() {
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf "$c" ;;
+            *) printf "$c" | xxd -p -c1 | while read x;do printf "%%%s" "$x";done
+        esac
+    done
+}
 
 function mimotion() {
     # login
@@ -43,6 +54,19 @@ function telegrambot() {
     curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null
 }
 
+function dingdingbot() {
+    # 钉钉通知消息: 未设置相应传入参数时不执行,传入参数格式 ding_token@*** ding_secret@*** | google search: 钉钉自定义机器人推送
+    echo ${all_parameter[*]} | grep -qE "ding_token@[a-zA-Z0-9:_-]+" && ding_token="$(echo ${all_parameter[*]} | grep -oE "ding_token@[a-zA-Z0-9:_-]+" | cut -f2 -d@)" || return 0
+    echo ${all_parameter[*]} | grep -qE "ding_secret@[a-zA-Z0-9:_-]+" && ding_secret="$(echo ${all_parameter[*]} | grep -oE "ding_secret@[a-zA-Z0-9:_-]+" | cut -f2 -d@)" || return 0
+    echo && echo starting dingdingbot...
+    # 部分代码参考 https://github.com/hzgjq/DingTalkRobot
+    TimeStamp="$(date +"%s")$(shuf -i 0-9 -n1)$(shuf -i 0-9 -n1)$(shuf -i 0-9 -n1)"
+    Sign="$(urlencode $(echo -en "${TimeStamp}\n${ding_secret}" | openssl dgst -sha256 -hmac "${ding_secret}" -binary | openssl base64))"
+    apiurl="https://oapi.dingtalk.com/robot/send?access_token=${ding_token}&timestamp=${TimeStamp}&sign=${Sign}"
+    data="{\"msgtype\": \"text\",\"text\": {\"content\": \"$(date) 小米运动账号 $(echo ${username:0:2}******${username:8}) 步数 $step 修改状态: $(cat $TMPFILE | grep -oE "message\":\"[^\"]*" | cut -d\" -f3)\"}}"
+    echo 钉钉通知消息状态：$(curl -m 10 -sX POST -H "Content-Type:application/json" --data "{\"msgtype\": \"text\",\"text\": {\"content\": \"$(date) 小米运动账号 $(echo ${username:0:2}******${username:8}) 步数 $step 修改状态: $(cat $TMPFILE | grep -oE "message\":\"[^\"]*" | cut -d\" -f3)\"}}" "$apiurl")
+}
+
 function main() {
     for ((u = 0; u < ${#all_username_password[*]}; u++)); do 
         sleep $(shuf -i 1-2 -n1)
@@ -53,6 +77,7 @@ function main() {
         mimotion
         # 通知
         telegrambot
+        dingdingbot
     done
 }
 
